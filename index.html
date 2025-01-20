@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Manager</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .container {
+            width: 80%;
+            max-width: 1000px;
+            margin-top: 20px;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+
+        .upload-section {
+            margin-bottom: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .upload-section label {
+            background-color: #3498db;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            text-align: center;
+            flex: 1;
+        }
+
+        .upload-section label:hover {
+            background-color: #2980b9;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .grid-item {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background-color: #fff;
+            padding: 10px;
+            text-align: center;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+        }
+
+        .grid-item:hover {
+            background-color: #f1f1f1;
+        }
+
+        .grid-item .delete-btn {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background-color: #e74c3c;
+            color: white;
+            border: none;
+            padding: 5px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .grid-item .delete-btn:hover {
+            background-color: #c0392b;
+        }
+
+        .preview {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background-color: #fff;
+        }
+
+        .preview img, .preview video {
+            max-width: 100%;
+            height: auto;
+            display: block;
+            margin-bottom: 10px;
+        }
+
+        .preview pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            background-color: #f9f9f9;
+            padding: 10px;
+            border-radius: 4px;
+        }
+
+        .back-button {
+            display: none;
+            margin-top: 10px;
+            background-color: #3498db;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .back-button:hover {
+            background-color: #2980b9;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>File Manager</h1>
+        <div class="upload-section">
+            <label for="file-input-files">Upload Files</label>
+            <input type="file" id="file-input-files" multiple>
+
+            <label for="file-input-folder">Upload Folder</label>
+            <input type="file" id="file-input-folder" webkitdirectory directory multiple>
+        </div>
+        <button class="back-button" id="back-button">Go Back</button>
+        <div class="grid-container" id="grid-container">
+            <!-- Files and folders will be dynamically added here -->
+        </div>
+        <div class="preview" id="preview">
+            <h3>File Preview</h3>
+            <div id="preview-content">No file selected</div>
+        </div>
+    </div>
+
+    <script>
+        const fileInputFiles = document.getElementById('file-input-files');
+        const fileInputFolder = document.getElementById('file-input-folder');
+        const gridContainer = document.getElementById('grid-container');
+        const previewContent = document.getElementById('preview-content');
+        const backButton = document.getElementById('back-button');
+
+        let folderStructure = {};
+        let currentFolder = null;
+
+        fileInputFiles.addEventListener('change', (event) => {
+            const files = event.target.files;
+            addFilesToGrid(files);
+            fileInputFiles.value = '';
+        });
+
+        fileInputFolder.addEventListener('change', (event) => {
+            const files = event.target.files;
+            organizeFolderStructure(files);
+            fileInputFolder.value = '';
+        });
+
+        backButton.addEventListener('click', () => {
+            if (currentFolder) {
+                currentFolder = null;
+                renderGrid(folderStructure);
+                backButton.style.display = 'none';
+            }
+        });
+
+        function addFilesToGrid(files) {
+            Array.from(files).forEach(file => {
+                createGridItem(file.name, file, false);
+            });
+        }
+
+        function organizeFolderStructure(files) {
+            folderStructure = {};
+
+            Array.from(files).forEach(file => {
+                const pathParts = file.webkitRelativePath.split('/');
+                const folderPath = pathParts.slice(0, -1).join('/');
+
+                if (!folderStructure[folderPath]) {
+                    folderStructure[folderPath] = [];
+                }
+                folderStructure[folderPath].push(file);
+            });
+
+            renderGrid(folderStructure);
+        }
+
+        function renderGrid(structure) {
+            gridContainer.innerHTML = '';
+
+            Object.entries(structure).forEach(([key, value]) => {
+                createGridItem(key, value, Array.isArray(value));
+            });
+        }
+
+        function createGridItem(name, data, isFolder) {
+            const itemDiv = document.createElement('div');
+            itemDiv.classList.add('grid-item');
+            itemDiv.textContent = name;
+
+            if (isFolder) {
+                itemDiv.addEventListener('dblclick', () => {
+                    currentFolder = data;
+                    gridContainer.innerHTML = '';
+                    data.forEach(file => {
+                        createGridItem(file.name, file, false);
+                    });
+                    backButton.style.display = 'block';
+                });
+            } else {
+                itemDiv.addEventListener('click', () => previewFile(data));
+            }
+
+            const deleteButton = document.createElement('button');
+            deleteButton.textContent = 'x';
+            deleteButton.classList.add('delete-btn');
+            deleteButton.onclick = (e) => {
+                e.stopPropagation();
+                itemDiv.remove();
+                clearPreview();
+            };
+
+            itemDiv.appendChild(deleteButton);
+            gridContainer.appendChild(itemDiv);
+        }
+
+        function previewFile(file) {
+            const reader = new FileReader();
+
+            reader.onload = (e) => {
+                const result = e.target.result;
+                const fileType = file.type;
+
+                if (fileType.startsWith('image/')) {
+                    previewContent.innerHTML = `<img src="${result}" alt="Image preview">`;
+                } else if (fileType.startsWith('video/')) {
+                    previewContent.innerHTML = `<video controls><source src="${result}" type="${fileType}">Your browser does not support the video tag.</video>`;
+                } else if (fileType === 'text/plain') {
+                    previewContent.innerHTML = `<pre>${result}</pre>`;
+                } else {
+                    previewContent.innerHTML = 'Preview not available for this file type.';
+                }
+            };
+
+            if (file.type.startsWith('text/')) {
+                reader.readAsText(file);
+            } else {
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function clearPreview() {
+            previewContent.innerHTML = 'No file selected';
+        }
+    </script>
+</body>
+</html>
+
